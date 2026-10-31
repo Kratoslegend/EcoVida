@@ -1,0 +1,16 @@
+# Dependencias de Node.js
+node_modules/
+
+# Plataformas generadas por Cordova
+platforms/
+
+# Archivos temporales y registros
+*.log
+npm-debug.log*
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración local del editor
+.vscode/
