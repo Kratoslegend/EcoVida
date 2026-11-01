@@ -1,0 +1,57 @@
+
+name: EcoVida - Android Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Compilar EcoVida para Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configurar Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Instalar Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Instalar dependencias del proyecto
+        run: npm ci
+
+      - name: Instalar Apache Cordova CLI
+        run: npm install -g cordova@13.0.0
+
+      - name: Agregar plataforma Android
+        run: cordova platform add android@15.1.0 --nosave
+
+      - name: Compilar APK
+        run: cordova build android --debug
+
+      - name: Guardar APK generado
+        uses: actions/upload-artifact@v4
+        with:
+          name: EcoVida-Android-APK
+          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
