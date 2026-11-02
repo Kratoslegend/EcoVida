@@ -1,6 +1,6 @@
 const Reconocimientos = {
     obtenerActividades() {
-        return Storage.get("ecovida_actividades", []);
+        return Actividades.obtenerTodas();
     },
 
     obtenerLogros() {

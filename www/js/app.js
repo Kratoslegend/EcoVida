@@ -1,10 +1,34 @@
-
 document.addEventListener("DOMContentLoaded", () => {
 
     const screens = document.querySelectorAll(".screen");
     const navigation = document.getElementById("bottom-navigation");
 
+    const migracionCorrecta = Usuarios.migrarPerfilAnterior();
+
+    if (!migracionCorrecta) {
+        alert(
+            "No fue posible completar la migración de tus datos. " +
+            "La aplicación no continuará para proteger tu información."
+        );
+        return;
+    }
+
     function mostrarPantalla(nombre) {
+
+        const pantallasPublicas = [
+            "welcome",
+            "register",
+            "login"
+        ];
+
+        if (
+            !pantallasPublicas.includes(nombre) &&
+            !Usuarios.obtenerPerfil()
+        ) {
+            alert("Debes iniciar sesión para continuar.");
+            nombre = "welcome";
+        }
+
         const destino = document.getElementById(`screen-${nombre}`);
 
         if (!destino) {
@@ -18,7 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         destino.classList.add("active");
 
-        const menuVisible = !["welcome", "register"].includes(nombre);
+        const menuVisible =
+            !pantallasPublicas.includes(nombre) &&
+            Boolean(Usuarios.obtenerPerfil());
+
         navigation.classList.toggle("hidden", !menuVisible);
 
         document.querySelectorAll(".nav-item").forEach(item => {
@@ -39,15 +66,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function actualizarInicio() {
+
         const perfil = Usuarios.obtenerPerfil();
-        const nombre = perfil ? perfil.nombre : "Usuario";
+
+        if (!perfil) return;
+
+        const nombre = perfil.nombre;
 
         document.getElementById("welcome-user").textContent =
             `¡Hola, ${nombre}!`;
 
-        const actividades = Storage.get("ecovida_actividades", []);
-        const metas = Storage.get("ecovida_metas", []);
-        const puntos = Storage.get("ecovida_puntos", 0);
+        const actividades = Actividades.obtenerTodas();
+        const metas = Metas.obtenerTodas();
+
+        const puntos = Storage.getUserData(
+            "ecovida_puntos",
+            0
+        );
 
         document.getElementById("home-activities").textContent =
             actividades.length;
@@ -58,14 +93,17 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("home-points").textContent =
             puntos;
     }
-        window.actualizarDashboard = actualizarInicio;
+
+    window.actualizarDashboard = actualizarInicio;
 
     function actualizarPerfil() {
+
         const perfil = Usuarios.obtenerPerfil();
+
         const contenedor = document.getElementById("profile-content");
 
         if (!perfil) {
-            contenedor.textContent = "No hay un perfil registrado.";
+            contenedor.textContent = "No hay una sesión activa.";
             return;
         }
 
@@ -78,37 +116,150 @@ document.addEventListener("DOMContentLoaded", () => {
         const correo = document.createElement("p");
         correo.textContent = perfil.correo;
 
+        tarjeta.append(titulo, correo);
+
+        if (!perfil.passwordHash) {
+
+            const aviso = document.createElement("p");
+
+            aviso.textContent =
+                "Para proteger tu cuenta, configura una contraseña antes de cerrar sesión.";
+
+            tarjeta.appendChild(aviso);
+
+            const formulario = document.createElement("form");
+            formulario.id = "legacy-password-form";
+
+            formulario.innerHTML = `
+                <label for="legacy-password">
+                    Nueva contraseña
+                </label>
+
+                <input
+                    type="password"
+                    id="legacy-password"
+                    minlength="8"
+                    placeholder="Mínimo 8 caracteres"
+                    required
+                >
+
+                <label for="legacy-password-confirm">
+                    Confirmar contraseña
+                </label>
+
+                <input
+                    type="password"
+                    id="legacy-password-confirm"
+                    minlength="8"
+                    placeholder="Repite tu contraseña"
+                    required
+                >
+
+                <button type="submit" class="btn btn-primary">
+                    Configurar contraseña
+                </button>
+            `;
+
+            formulario.addEventListener("submit", async event => {
+
+                event.preventDefault();
+
+                const password =
+                    document.getElementById("legacy-password").value;
+
+                const confirmacion =
+                    document.getElementById("legacy-password-confirm").value;
+
+                if (password.length < 8) {
+                    alert("La contraseña debe tener al menos 8 caracteres.");
+                    return;
+                }
+
+                if (password !== confirmacion) {
+                    alert("Las contraseñas no coinciden.");
+                    return;
+                }
+
+                try {
+
+                    const guardado =
+                        await Usuarios.establecerPassword(password);
+
+                    if (!guardado) {
+                        alert("No fue posible configurar la contraseña.");
+                        return;
+                    }
+
+                    alert("¡Contraseña configurada correctamente!");
+
+                    actualizarPerfil();
+
+                } catch (error) {
+
+                    console.error(error);
+
+                    alert(
+                        "No fue posible configurar la contraseña. " +
+                        "Comprueba la compatibilidad del dispositivo."
+                    );
+                }
+            });
+
+            tarjeta.appendChild(formulario);
+        }
+
         const boton = document.createElement("button");
+
         boton.id = "btn-logout";
         boton.className = "btn btn-secondary";
         boton.textContent = "Cerrar sesión";
 
         boton.addEventListener("click", () => {
-            if (confirm("¿Deseas cerrar tu perfil en este dispositivo?")) {
-                Storage.remove("ecovida_usuario");
+
+            if (!perfil.passwordHash) {
+                alert(
+                    "Primero debes configurar una contraseña " +
+                    "para poder volver a acceder a tu cuenta."
+                );
+                return;
+            }
+
+            if (confirm("¿Deseas cerrar sesión? Tus datos se conservarán.")) {
+
+                Usuarios.cerrarSesion();
+
                 mostrarPantalla("welcome");
             }
         });
 
-        tarjeta.append(titulo, correo, boton);
+        tarjeta.appendChild(boton);
+
         contenedor.replaceChildren(tarjeta);
     }
 
     document.getElementById("btn-go-register")
-        .addEventListener("click", () => mostrarPantalla("register"));
+        .addEventListener("click", () => {
+            mostrarPantalla("register");
+        });
 
     document.getElementById("btn-go-login")
         .addEventListener("click", () => {
-            if (Usuarios.obtenerPerfil()) {
-                mostrarPantalla("home");
-            } else {
-                alert("Todavía no tienes un perfil registrado.");
-                mostrarPantalla("register");
-            }
+            mostrarPantalla("login");
+        });
+
+    document.getElementById("btn-register-login")
+        .addEventListener("click", () => {
+            mostrarPantalla("login");
+        });
+
+    document.getElementById("btn-login-register")
+        .addEventListener("click", () => {
+            mostrarPantalla("register");
         });
 
     document.getElementById("register-form")
-        .addEventListener("submit", event => {
+        .addEventListener("submit", async event => {
+
             event.preventDefault();
 
             const nombre =
@@ -117,35 +268,126 @@ document.addEventListener("DOMContentLoaded", () => {
             const correo =
                 document.getElementById("register-email").value;
 
+            const password =
+                document.getElementById("register-password").value;
+
+            const confirmacion =
+                document.getElementById("register-password-confirm").value;
+
             if (!nombre.trim() || !correo.trim()) {
                 alert("Completa todos los campos.");
                 return;
             }
 
-            if (Usuarios.obtenerPerfil()) {
-                alert("Ya existe un perfil en este dispositivo.");
+            if (password.length < 8) {
+                alert("La contraseña debe tener al menos 8 caracteres.");
                 return;
             }
 
-            const perfil = Usuarios.crearPerfil(nombre, correo);
-
-            if (!perfil) {
-                alert("No se pudo guardar el perfil.");
+            if (password !== confirmacion) {
+                alert("Las contraseñas no coinciden.");
                 return;
             }
 
-            event.target.reset();
-            alert("¡Perfil EcoVida creado correctamente!");
-            mostrarPantalla("home");
+            try {
+
+                const perfil = await Usuarios.crearPerfil(
+                    nombre,
+                    correo,
+                    password
+                );
+
+                if (!perfil) {
+                    alert(
+                        "No se pudo crear la cuenta. " +
+                        "Comprueba si el correo ya está registrado."
+                    );
+                    return;
+                }
+
+                event.target.reset();
+
+                alert("¡Tu cuenta EcoVida fue creada correctamente!");
+
+                mostrarPantalla("home");
+
+            } catch (error) {
+
+                console.error("Error durante el registro:", error);
+
+                alert(
+                    "No fue posible crear la cuenta. " +
+                    "Comprueba la compatibilidad del dispositivo."
+                );
+            }
         });
+
+    document.getElementById("login-form")
+        .addEventListener("submit", async event => {
+
+            event.preventDefault();
+
+            const correo =
+                document.getElementById("login-email").value;
+
+            const password =
+                document.getElementById("login-password").value;
+
+            if (!correo.trim() || !password) {
+                alert("Ingresa tu correo y contraseña.");
+                return;
+            }
+
+            try {
+
+                const perfil = await Usuarios.iniciarSesion(
+                    correo,
+                    password
+                );
+
+                if (!perfil) {
+                    alert(
+                        "Correo o contraseña incorrectos. " +
+                        "Verifica tus datos e inténtalo nuevamente."
+                    );
+                    return;
+                }
+
+                event.target.reset();
+
+                alert(`¡Bienvenido nuevamente, ${perfil.nombre}!`);
+
+                mostrarPantalla("home");
+
+            } catch (error) {
+
+                console.error("Error durante el inicio de sesión:", error);
+
+                alert(
+                    "No fue posible iniciar sesión. " +
+                    "Comprueba la compatibilidad del dispositivo."
+                );
+            }
+        });
+
 
     document.querySelectorAll("[data-screen]").forEach(boton => {
+
         boton.addEventListener("click", () => {
+
             mostrarPantalla(boton.dataset.screen);
+
         });
+
     });
+
 
     const perfilExistente = Usuarios.obtenerPerfil();
 
-    mostrarPantalla(perfilExistente ? "home" : "welcome");
+    if (perfilExistente) {
+        mostrarPantalla("home");
+    } else {
+        mostrarPantalla("welcome");
+    }
+
 });

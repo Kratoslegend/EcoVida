@@ -1,7 +1,7 @@
 const Impacto = {
 
     obtenerActividades() {
-        return Storage.get("ecovida_actividades", []);
+        return Actividades.obtenerTodas();
     },
 
     calcular() {

@@ -2,46 +2,46 @@
 const Metas = {
 
     obtenerTodas() {
-        return Storage.get("ecovida_metas", []);
+        return Storage.getUserData("ecovida_metas", []);
     },
 
     guardarTodas(metas) {
-        return Storage.set("ecovida_metas", metas);
+        return Storage.setUserData("ecovida_metas", metas);
     },
 
     obtenerProgreso(meta) {
-        const actividades = Storage.get("ecovida_actividades", []);
+    const actividades = Actividades.obtenerTodas();
 
-        const actividadesCategoria = actividades.filter(
-            actividad => actividad.tipo === meta.tipo
-        );
+    const actividadesCategoria = actividades.filter(
+        actividad => actividad.tipo === meta.tipo
+    );
 
-        // Compatibilidad: las metas anteriores son por acciones.
-        const modo = meta.modo || "acciones";
+    // Compatibilidad: las metas anteriores son por acciones.
+    const modo = meta.modo || "acciones";
 
-        if (modo === "medicion") {
-            return actividadesCategoria.reduce((total, actividad) => {
-                const medicion = actividad.medicion;
+    if (modo === "medicion") {
+        return actividadesCategoria.reduce((total, actividad) => {
+            const medicion = actividad.medicion;
 
-                if (
-                    medicion === null ||
-                    medicion === undefined ||
-                    medicion === "" ||
-                    !Number.isFinite(Number(medicion))
-                ) {
-                    return total;
-                }
+            if (
+                medicion === null ||
+                medicion === undefined ||
+                medicion === "" ||
+                !Number.isFinite(Number(medicion))
+            ) {
+                return total;
+            }
 
-                return total + Number(medicion);
-            }, 0);
-        }
+            return total + Number(medicion);
+        }, 0);
+    }
 
-        return actividadesCategoria.reduce(
-            (total, actividad) =>
-                total + Number(actividad.cantidad || 0),
-            0
-        );
-    },
+    return actividadesCategoria.reduce(
+        (total, actividad) =>
+            total + Number(actividad.cantidad || 0),
+        0
+    );
+},
 
     estaCompletada(meta) {
         return this.obtenerProgreso(meta) >= Number(meta.objetivo);

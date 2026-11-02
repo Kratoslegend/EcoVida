@@ -47,21 +47,21 @@ const Actividades = {
     ],
 
     obtenerTodas() {
-        return Storage.get("ecovida_actividades", []);
+        return Storage.getUserData("ecovida_actividades", []);
     },
 
     guardarTodas(actividades) {
-        return Storage.set("ecovida_actividades", actividades);
+        return Storage.setUserData("ecovida_actividades", actividades);
     },
 
     actualizarPuntos(actividades) {
-        const total = actividades.reduce(
-            (suma, actividad) => suma + Number(actividad.puntos || 0),
-            0
-        );
+    const total = actividades.reduce(
+        (suma, actividad) => suma + Number(actividad.puntos || 0),
+        0
+    );
 
-        Storage.set("ecovida_puntos", total);
-    },
+    Storage.setUserData("ecovida_puntos", total);
+},
 
     registrar(datos) {
         const actividades = this.obtenerTodas();

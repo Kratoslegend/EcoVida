@@ -1,6 +1,6 @@
 const Historial = {
     obtenerActividades() {
-        return Storage.get("ecovida_actividades", []);
+        return Actividades.obtenerTodas();
     },
 
     escapar(texto) {
@@ -43,26 +43,25 @@ const Historial = {
     },
 
     eliminar(id) {
-        const confirmar = confirm(
-            "¿Estás seguro de que deseas eliminar este registro?"
-        );
+    const confirmar = confirm(
+        "¿Estás seguro de que deseas eliminar este registro?"
+    );
 
-        if (!confirmar) return;
+    if (!confirmar) return;
 
-        const actividades = this.obtenerActividades();
+    const eliminado = Actividades.eliminar(id);
 
-        const actualizadas = actividades.filter(
-            actividad => String(actividad.id) !== String(id)
-        );
+    if (!eliminado) {
+        alert("No fue posible eliminar el registro.");
+        return;
+    }
 
-        Storage.set("ecovida_actividades", actualizadas);
+    if (typeof actualizarDashboard === "function") {
+        actualizarDashboard();
+    }
 
-        if (typeof actualizarDashboard === "function") {
-            actualizarDashboard();
-        }
-
-        this.renderizar();
-    },
+    this.renderizar();
+},
 
     renderizar() {
         const contenedor = document.getElementById("history-content");
